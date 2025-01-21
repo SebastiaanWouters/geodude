@@ -24,8 +24,12 @@ func TestParsePBF(t *testing.T) {
 		t.Fatalf("Expected Latitude 42.491302600000004, got %f", data.Nodes[3854300084].Lat)
 	}
 
-	if len(data.Ways) != 7763 {
-		t.Fatalf("Expected 7763 ways, got %d", len(data.Ways))
+	if len(data.Ways) != 24607 {
+		t.Fatalf("Expected 24607 ways, got %d", len(data.Ways))
+	}
+
+	if len(data.Relations) != 614 {
+		t.Fatalf("Expected 614 relations, got %d", len(data.Relations))
 	}
 
 }

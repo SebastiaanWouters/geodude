@@ -9,8 +9,9 @@ import (
 )
 
 type OSMData struct {
-	Nodes map[osm.NodeID]osm.Node
-	Ways  []osm.Way
+	Nodes     map[osm.NodeID]osm.Node
+	Ways      []osm.Way
+	Relations []osm.Relation
 }
 
 func ParsePBF(filePath string) (*OSMData, error) {
@@ -35,9 +36,9 @@ func ParsePBF(filePath string) (*OSMData, error) {
 		case *osm.Node:
 			data.Nodes[v.ID] = *v
 		case *osm.Way:
-			if v.Tags.Find("highway") != "" {
-				data.Ways = append(data.Ways, *v)
-			}
+			data.Ways = append(data.Ways, *v)
+		case *osm.Relation:
+			data.Relations = append(data.Relations, *v)
 		}
 	}
 
