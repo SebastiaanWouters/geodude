@@ -8,12 +8,7 @@ import (
 	"github.com/paulmach/osm/osmpbf"
 )
 
-type OSMData struct {
-	Nodes     map[osm.NodeID]osm.Node
-	Ways      []osm.Way
-	Relations []osm.Relation
-}
-
+// ParsePBF parses an OSM PBF file and returns the data using custom types.
 func ParsePBF(filePath string) (*OSMData, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
@@ -25,8 +20,9 @@ func ParsePBF(filePath string) (*OSMData, error) {
 	defer scanner.Close()
 
 	data := &OSMData{
-		Nodes: make(map[osm.NodeID]osm.Node),
-		Ways:  make([]osm.Way, 0),
+		Nodes:     make(map[ID]Node),
+		Ways:      make([]Way, 0),
+		Relations: make([]Relation, 0),
 	}
 
 	for scanner.Scan() {
@@ -34,11 +30,41 @@ func ParsePBF(filePath string) (*OSMData, error) {
 
 		switch v := o.(type) {
 		case *osm.Node:
-			data.Nodes[v.ID] = *v
+			data.Nodes[ID(v.ID)] = Node{
+				ID:  ID(v.ID),
+				Lat: v.Lat,
+				Lon: v.Lon,
+			}
 		case *osm.Way:
-			data.Ways = append(data.Ways, *v)
+			way := Way{
+				ID:    ID(v.ID),
+				Nodes: make([]ID, len(v.Nodes)),
+			}
+			for i, node := range v.Nodes {
+				way.Nodes[i] = ID(node.ID)
+			}
+			data.Ways = append(data.Ways, way)
 		case *osm.Relation:
-			data.Relations = append(data.Relations, *v)
+			tags := make(Tags, len(v.Tags))
+			for i, tag := range v.Tags {
+				tags[i] = Tag{
+					Key:   tag.Key,
+					Value: tag.Value,
+				}
+			}
+			relation := Relation{
+				ID:      ID(v.ID),
+				Tags:    tags,
+				Members: make([]Member, len(v.Members)),
+			}
+			for i, member := range v.Members {
+				relation.Members[i] = Member{
+					Type: string(member.Type),
+					Ref:  ID(member.Ref),
+					Role: member.Role,
+				}
+			}
+			data.Relations = append(data.Relations, relation)
 		}
 	}
 
