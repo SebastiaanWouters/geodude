@@ -9,7 +9,7 @@ import (
 )
 
 // ParsePBF parses an OSM PBF file and returns the data using custom types.
-func ParsePBF(filePath string) (*OSMData, error) {
+func ParsePBF(filePath string, onlyRoutable bool) (*OSMData, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
 		return nil, err
@@ -36,14 +36,27 @@ func ParsePBF(filePath string) (*OSMData, error) {
 				Lon: v.Lon,
 			}
 		case *osm.Way:
-			way := Way{
-				ID:    ID(v.ID),
-				Nodes: make([]ID, len(v.Nodes)),
+			if !onlyRoutable {
+				way := Way{
+					ID:    ID(v.ID),
+					Nodes: make([]ID, len(v.Nodes)),
+				}
+				for i, node := range v.Nodes {
+					way.Nodes[i] = ID(node.ID)
+				}
+				data.Ways = append(data.Ways, way)
+				break
 			}
-			for i, node := range v.Nodes {
-				way.Nodes[i] = ID(node.ID)
+			if v.Tags.HasTag("highway") || v.Tags.HasTag("junction") {
+				way := Way{
+					ID:    ID(v.ID),
+					Nodes: make([]ID, len(v.Nodes)),
+				}
+				for i, node := range v.Nodes {
+					way.Nodes[i] = ID(node.ID)
+				}
+				data.Ways = append(data.Ways, way)
 			}
-			data.Ways = append(data.Ways, way)
 		case *osm.Relation:
 			tags := make(Tags, len(v.Tags))
 			for i, tag := range v.Tags {

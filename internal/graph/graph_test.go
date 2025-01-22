@@ -76,3 +76,23 @@ func TestGraph(t *testing.T) {
 		t.Fatalf("Expected distance between Paris and London to be around 344 km, got %f", parisToLondon.Weight)
 	}
 }
+
+func TestGraphFromRawData(t *testing.T) {
+	// Create a sample OSMData structure for testing
+	osmData, err := osm.ParsePBF("./../../data/andorra-latest.osm.pbf")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Construct the graph from the OSM data
+	graph := ConstructGraphFromOSMData(osmData)
+
+	// Test if all nodes were added to the graph
+	if len(graph.Nodes) != 471006 {
+		t.Fatalf("Expected 471006 nodes, got %d", len(graph.Nodes))
+	}
+
+	if len(graph.Edges) != 466857 {
+		t.Fatalf("Expected 466857 edges, got %d", len(graph.Edges))
+	}
+}

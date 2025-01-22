@@ -5,7 +5,7 @@ import (
 )
 
 func TestParsePBF(t *testing.T) {
-	data, err := ParsePBF("./../../data/andorra-latest.osm.pbf")
+	data, err := ParsePBF("./../../data/andorra-latest.osm.pbf", false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -95,6 +95,23 @@ func TestParsePBF(t *testing.T) {
 	}
 	if !compareTags(relation.Tags, expectedRelationTags) {
 		t.Fatalf("Expected tags %v, got %v", expectedRelationTags, relation.Tags)
+	}
+}
+
+func TestParsePBFOnlyRoutable(t *testing.T) {
+	data, err := ParsePBF("./../../data/andorra-latest.osm.pbf", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Test nodes
+	if len(data.Nodes) != 471006 {
+		t.Fatalf("Expected 471006 nodes, got %d", len(data.Nodes))
+	}
+
+	// Test ways
+	if len(data.Ways) != 7763 {
+		t.Fatalf("Expected 7763 ways, got %d", len(data.Ways))
 	}
 }
 
