@@ -79,7 +79,7 @@ func TestGraph(t *testing.T) {
 
 func TestGraphFromRawData(t *testing.T) {
 	// Create a sample OSMData structure for testing
-	osmData, err := osm.ParsePBF("./../../data/andorra-latest.osm.pbf")
+	osmData, err := osm.ParsePBF("./../../data/andorra-latest.osm.pbf", false)
 	if err != nil {
 		t.Fatal(err)
 	}
