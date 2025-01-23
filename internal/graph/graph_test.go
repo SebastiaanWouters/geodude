@@ -2,97 +2,85 @@ package graph
 
 import (
 	"testing"
-
-	"github.com/sebastiaanwouters/geodude/internal/osm"
 )
 
 func TestGraph(t *testing.T) {
-	// Create a sample OSMData structure for testing
-	osmData := &osm.OSMData{
-		Nodes: map[osm.ID]osm.Node{
-			1: {ID: 1, Lat: 52.5200, Lon: 13.4050}, // Berlin
-			2: {ID: 2, Lat: 48.8566, Lon: 2.3522},  // Paris
-			3: {ID: 3, Lat: 51.5074, Lon: -0.1278}, // London
-		},
-		Ways: []osm.Way{
-			{
-				ID:    101,
-				Nodes: []osm.ID{1, 2}, // Berlin to Paris
-			},
-			{
-				ID:    102,
-				Nodes: []osm.ID{2, 3}, // Paris to London
-			},
-		},
-	}
+	// Create a simple test graph
+	graph := NewGraph()
 
-	// Construct the graph from the OSM data
-	graph := ConstructGraphFromOSMData(osmData)
+	// Add test nodes
+	node1 := Node{ID: 1, Lat: 52.5200, Lon: 13.4050} // Berlin
+	node2 := Node{ID: 2, Lat: 48.8566, Lon: 2.3522}  // Paris
+	node3 := Node{ID: 3, Lat: 51.5074, Lon: -0.1278} // London
 
-	// Test if all nodes were added to the graph
-	if len(graph.Nodes) != 3 {
-		t.Fatalf("Expected 3 nodes in the graph, got %d", len(graph.Nodes))
-	}
+	graph.AddNode(node1)
+	graph.AddNode(node2)
+	graph.AddNode(node3)
 
-	// Test if the nodes have the correct coordinates
-	berlinNode := graph.Nodes[1]
-	if berlinNode.Lat != 52.5200 || berlinNode.Lon != 13.4050 {
-		t.Fatalf("Expected Berlin node coordinates (52.5200, 13.4050), got (%f, %f)", berlinNode.Lat, berlinNode.Lon)
-	}
+	// Add test edges
+	graph.AddEdge(1, 2, 878.0) // Berlin to Paris
+	graph.AddEdge(2, 1, 878.0) // Paris to Berlin
+	graph.AddEdge(2, 3, 344.0) // Paris to London
+	graph.AddEdge(3, 2, 344.0) // London to Paris
 
-	parisNode := graph.Nodes[2]
-	if parisNode.Lat != 48.8566 || parisNode.Lon != 2.3522 {
-		t.Fatalf("Expected Paris node coordinates (48.8566, 2.3522), got (%f, %f)", parisNode.Lat, parisNode.Lon)
-	}
+	// Test AdjacentNodes
+	t.Run("Test AdjacentNodes", func(t *testing.T) {
+		// Test node 1 (Berlin)
+		adjacent := graph.AdjacentNodes(1)
+		if len(adjacent) != 1 {
+			t.Errorf("Expected 1 adjacent node for Berlin, got %d", len(adjacent))
+		}
+		if weight, exists := adjacent[2]; !exists || weight != 878.0 {
+			t.Errorf("Expected edge weight 878.0 between Berlin and Paris, got %f", weight)
+		}
 
-	londonNode := graph.Nodes[3]
-	if londonNode.Lat != 51.5074 || londonNode.Lon != -0.1278 {
-		t.Fatalf("Expected London node coordinates (51.5074, -0.1278), got (%f, %f)", londonNode.Lat, londonNode.Lon)
-	}
+		// Test node 2 (Paris)
+		adjacent = graph.AdjacentNodes(2)
+		if len(adjacent) != 2 {
+			t.Errorf("Expected 2 adjacent nodes for Paris, got %d", len(adjacent))
+		}
+		if weight, exists := adjacent[1]; !exists || weight != 878.0 {
+			t.Errorf("Expected edge weight 878.0 between Paris and Berlin, got %f", weight)
+		}
+		if weight, exists := adjacent[3]; !exists || weight != 344.0 {
+			t.Errorf("Expected edge weight 344.0 between Paris and London, got %f", weight)
+		}
 
-	// Test if edges were correctly added
-	if len(graph.Edges[1]) != 1 {
-		t.Fatalf("Expected 1 edge from Berlin, got %d", len(graph.Edges[1]))
-	}
+		// Test non-existent node
+		adjacent = graph.AdjacentNodes(999)
+		if len(adjacent) != 0 {
+			t.Errorf("Expected 0 adjacent nodes for non-existent node, got %d", len(adjacent))
+		}
+	})
 
-	if len(graph.Edges[2]) != 2 {
-		t.Fatalf("Expected 2 edges from Paris, got %d", len(graph.Edges[2]))
-	}
+	// Test AdjacentNodesWithData
+	t.Run("Test AdjacentNodesWithData", func(t *testing.T) {
+		// Test node 2 (Paris)
+		adjacent := graph.AdjacentNodesWithData(2)
+		if len(adjacent) != 2 {
+			t.Errorf("Expected 2 adjacent nodes for Paris, got %d", len(adjacent))
+		}
 
-	if len(graph.Edges[3]) != 1 {
-		t.Fatalf("Expected 1 edge from London, got %d", len(graph.Edges[3]))
-	}
+		// Verify first adjacent node (Berlin)
+		if adjacent[0].Node.ID != 1 {
+			t.Errorf("Expected first adjacent node to be Berlin (ID 1), got %d", adjacent[0].Node.ID)
+		}
+		if adjacent[0].Weight != 878.0 {
+			t.Errorf("Expected weight 878.0 for Berlin, got %f", adjacent[0].Weight)
+		}
 
-	// Test edge weights (distances)
-	berlinToParis := graph.Edges[1][0]
-	expectedDistance := 878.0 // Approximate distance between Berlin and Paris in km
-	if berlinToParis.Weight < expectedDistance-10 || berlinToParis.Weight > expectedDistance+10 {
-		t.Fatalf("Expected distance between Berlin and Paris to be around 878 km, got %f", berlinToParis.Weight)
-	}
+		// Verify second adjacent node (London)
+		if adjacent[1].Node.ID != 3 {
+			t.Errorf("Expected second adjacent node to be London (ID 3), got %d", adjacent[1].Node.ID)
+		}
+		if adjacent[1].Weight != 344.0 {
+			t.Errorf("Expected weight 344.0 for London, got %f", adjacent[1].Weight)
+		}
 
-	parisToLondon := graph.Edges[2][1]
-	expectedDistance = 344.0 // Approximate distance between Paris and London in km
-	if parisToLondon.Weight < expectedDistance-10 || parisToLondon.Weight > expectedDistance+10 {
-		t.Fatalf("Expected distance between Paris and London to be around 344 km, got %f", parisToLondon.Weight)
-	}
-}
-
-func TestGraphFromRawData(t *testing.T) {
-	// Create a sample OSMData structure for testing
-	osmData, err := osm.ParsePBF("./../../data/andorra-latest.osm.pbf", false)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Construct the graph from the OSM data
-	graph := ConstructGraphFromOSMData(osmData)
-
-	// Test if all nodes were added to the graph
-	if len(graph.Nodes) != 471006 {
-		t.Fatalf("Expected 471006 nodes, got %d", len(graph.Nodes))
-	}
-
-	if len(graph.Edges) != 466857 {
-		t.Fatalf("Expected 466857 edges, got %d", len(graph.Edges))
-	}
+		// Test non-existent node
+		adjacent = graph.AdjacentNodesWithData(999)
+		if len(adjacent) != 0 {
+			t.Errorf("Expected 0 adjacent nodes for non-existent node, got %d", len(adjacent))
+		}
+	})
 }

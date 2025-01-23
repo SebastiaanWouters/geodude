@@ -77,3 +77,41 @@ func ConstructGraphFromOSMData(data *osm.OSMData) *Graph {
 
 	return graph
 }
+
+func (g *Graph) AdjacentNodes(nodeID osm.ID) map[osm.ID]float64 {
+	adjacent := make(map[osm.ID]float64)
+
+	// Get all edges from the given node
+	if edges, exists := g.Edges[nodeID]; exists {
+		for _, edge := range edges {
+			adjacent[edge.To] = edge.Weight
+		}
+	}
+
+	return adjacent
+}
+
+// AdjacentNodesWithData returns all nodes that are directly connected to the given node ID,
+// including their full node data and the edge weights.
+type AdjacentNode struct {
+	Node   Node
+	Weight float64
+}
+
+func (g *Graph) AdjacentNodesWithData(nodeID osm.ID) []AdjacentNode {
+	var adjacent []AdjacentNode
+
+	// Get all edges from the given node
+	if edges, exists := g.Edges[nodeID]; exists {
+		for _, edge := range edges {
+			if node, exists := g.Nodes[edge.To]; exists {
+				adjacent = append(adjacent, AdjacentNode{
+					Node:   node,
+					Weight: edge.Weight,
+				})
+			}
+		}
+	}
+
+	return adjacent
+}
