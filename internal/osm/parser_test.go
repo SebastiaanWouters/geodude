@@ -160,3 +160,31 @@ func compareTags(tags1, tags2 Tags) bool {
 
 	return true
 }
+
+func TestParsePBFFromURL(t *testing.T) {
+	// Replace with a valid URL pointing to an OSM PBF file
+	url := "https://download.geofabrik.de/europe/andorra-latest.osm.pbf"
+	data, err := ParsePBF(url, false)
+	if err != nil {
+		t.Fatalf("ParsePBFFromURL() error: %v", err)
+	}
+
+	// Verify the parsed data
+	if len(data.Nodes) == 0 {
+		t.Error("Expected nodes, got none")
+	}
+	if len(data.Ways) == 0 {
+		t.Error("Expected ways, got none")
+	}
+	if len(data.Relations) == 0 {
+		t.Error("Expected relations, got none")
+	}
+}
+
+func TestParsePBFFromInvalidURL(t *testing.T) {
+	url := "https://example.com/invalid-file.txt"
+	_, err := ParsePBF(url, false)
+	if err == nil {
+		t.Error("Expected error for invalid URL, got nil")
+	}
+}

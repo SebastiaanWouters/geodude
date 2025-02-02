@@ -2,20 +2,108 @@ package osm
 
 import (
 	"context"
+	"fmt"
+	"io"
 	"os"
+	"strings"
 
 	"github.com/paulmach/osm"
 	"github.com/paulmach/osm/osmpbf"
+
+	"net/http"
+	"net/url"
 )
 
-// ParsePBF parses an OSM PBF file and returns the data using custom types.
-func ParsePBF(filePath string, onlyRoutable bool) (*OSMData, error) {
-	file, err := os.Open(filePath)
+func isURL(filePath string) (*url.URL, bool) {
+	u, err := url.Parse(filePath)
 	if err != nil {
-		return nil, err
+		return nil, false
+	}
+	if u.Scheme != "" && u.Host != "" {
+		return u, true
+	}
+	return nil, false
+}
+
+func ParsePBF(filePath string, onlyRoutable bool) (*OSMData, error) {
+	// Check if the file has the correct extension
+	if !strings.HasSuffix(strings.ToLower(filePath), ".pbf") {
+		return nil, fmt.Errorf("invalid file extension: file must end with .osm.pbf")
+	}
+
+	// Check if the input is a URL
+	parsedURL, isURL := isURL(filePath)
+	var file *os.File
+	var err error
+
+	if isURL {
+		// Download the file from the URL
+		resp, err := http.Get(parsedURL.String())
+		if err != nil {
+			return nil, fmt.Errorf("failed to download file from URL: %w", err)
+		}
+		defer resp.Body.Close()
+
+		// Check response status code
+		if resp.StatusCode != http.StatusOK {
+			return nil, fmt.Errorf("failed to download file: HTTP status %d", resp.StatusCode)
+		}
+
+		// Check Content-Type if available
+		contentType := resp.Header.Get("Content-Type")
+		if contentType != "" && !strings.Contains(contentType, "application/octet-stream") {
+			return nil, fmt.Errorf("invalid content type: %s", contentType)
+		}
+
+		// Create a temporary file to read the data
+		tempFile, err := os.CreateTemp("", "osm-*.osm.pbf")
+		if err != nil {
+			return nil, fmt.Errorf("failed to create temporary file: %w", err)
+		}
+		defer func() {
+			tempFile.Close()
+			os.Remove(tempFile.Name()) // Clean up temporary file
+		}()
+
+		// Copy the response body to the temporary file
+		_, err = io.Copy(tempFile, resp.Body)
+		if err != nil {
+			return nil, fmt.Errorf("failed to copy data to temporary file: %w", err)
+		}
+
+		// Open the temporary file for reading
+		file, err = os.Open(tempFile.Name())
+		if err != nil {
+			return nil, fmt.Errorf("failed to open temporary file: %w", err)
+		}
+	} else {
+		// Check if the local file exists
+		if _, err := os.Stat(filePath); os.IsNotExist(err) {
+			return nil, fmt.Errorf("file does not exist: %s", filePath)
+		}
+
+		// Open the local file
+		file, err = os.Open(filePath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to open file: %w", err)
+		}
 	}
 	defer file.Close()
 
+	// Read the first few bytes to verify it's a PBF file
+	header := make([]byte, 4)
+	_, err = file.Read(header)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read file header: %w", err)
+	}
+
+	// Reset file pointer to beginning
+	_, err = file.Seek(0, 0)
+	if err != nil {
+		return nil, fmt.Errorf("failed to reset file pointer: %w", err)
+	}
+
+	// Proceed with parsing as before
 	scanner := osmpbf.New(context.Background(), file, 3)
 	defer scanner.Close()
 
@@ -83,7 +171,7 @@ func ParsePBF(filePath string, onlyRoutable bool) (*OSMData, error) {
 
 	scanErr := scanner.Err()
 	if scanErr != nil {
-		panic(scanErr)
+		return nil, fmt.Errorf("error scanning PBF file: %w", scanErr)
 	}
 
 	return data, nil
