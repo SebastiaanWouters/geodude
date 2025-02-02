@@ -188,3 +188,17 @@ func TestParsePBFFromInvalidURL(t *testing.T) {
 		t.Error("Expected error for invalid URL, got nil")
 	}
 }
+
+func TestParsePBF_InvalidExtension(t *testing.T) {
+	_, err := ParsePBF("test.txt", false)
+	if err == nil {
+		t.Error("Expected error for invalid file extension")
+	}
+}
+
+func TestParsePBF_NonexistentFile(t *testing.T) {
+	_, err := ParsePBF("nonexistent.osm.pbf", false)
+	if err == nil {
+		t.Error("Expected error for nonexistent file")
+	}
+}
